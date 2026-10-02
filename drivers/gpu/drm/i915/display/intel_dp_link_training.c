@@ -639,13 +639,37 @@ void intel_dp_set_signal_levels(struct intel_dp *intel_dp,
 		encoder->set_signal_levels(encoder, crtc_state);
 }
 
+/*
+ * DP allows full link training to start above the minimum voltage swing and
+ * pre-emphasis when the optimal levels are already known, as on an embedded
+ * panel. The VBT may provide them for the source to eDP panel channel.
+ */
+static u8 intel_dp_initial_train_set(struct intel_dp *intel_dp,
+				     const struct intel_crtc_state *crtc_state,
+				     enum drm_dp_phy dp_phy)
+{
+	const struct intel_connector *connector = intel_dp->attached_connector;
+
+	if (!intel_dp_is_edp(intel_dp) || intel_dp_is_uhbr(crtc_state) ||
+	    dp_phy != DP_PHY_DPRX ||
+	    !intel_dp_phy_is_downstream_of_source(intel_dp, dp_phy) ||
+	    !connector->panel.vbt.edp.full_link_params_provided)
+		return 0;
+
+	return intel_dp_limit_vswing_preemph(intel_dp, crtc_state, dp_phy,
+					     connector->panel.vbt.edp.full_link_vswing,
+					     connector->panel.vbt.edp.full_link_preemphasis);
+}
+
 static bool
 intel_dp_reset_link_train(struct intel_dp *intel_dp,
 			  const struct intel_crtc_state *crtc_state,
 			  enum drm_dp_phy dp_phy,
 			  u8 dp_train_pat)
 {
-	memset(intel_dp->train_set, 0, sizeof(intel_dp->train_set));
+	memset(intel_dp->train_set,
+	       intel_dp_initial_train_set(intel_dp, crtc_state, dp_phy),
+	       sizeof(intel_dp->train_set));
 	intel_dp_set_signal_levels(intel_dp, crtc_state, dp_phy);
 	return intel_dp_set_link_train(intel_dp, crtc_state, dp_phy, dp_train_pat);
 }
