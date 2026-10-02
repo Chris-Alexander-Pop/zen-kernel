@@ -1434,6 +1434,38 @@ static void vbt_edp_to_pps_delays(struct intel_pps_delays *pps,
 	pps->power_cycle = edp_pps->t11_t12;
 }
 
+static int edp_preemphasis_to_dp(u8 preemphasis)
+{
+	switch (preemphasis) {
+	case EDP_PREEMPHASIS_NONE:
+		return DP_TRAIN_PRE_EMPH_LEVEL_0;
+	case EDP_PREEMPHASIS_3_5dB:
+		return DP_TRAIN_PRE_EMPH_LEVEL_1;
+	case EDP_PREEMPHASIS_6dB:
+		return DP_TRAIN_PRE_EMPH_LEVEL_2;
+	case EDP_PREEMPHASIS_9_5dB:
+		return DP_TRAIN_PRE_EMPH_LEVEL_3;
+	default:
+		return -EINVAL;
+	}
+}
+
+static int edp_vswing_to_dp(u8 vswing)
+{
+	switch (vswing) {
+	case EDP_VSWING_0_4V:
+		return DP_TRAIN_VOLTAGE_SWING_LEVEL_0;
+	case EDP_VSWING_0_6V:
+		return DP_TRAIN_VOLTAGE_SWING_LEVEL_1;
+	case EDP_VSWING_0_8V:
+		return DP_TRAIN_VOLTAGE_SWING_LEVEL_2;
+	case EDP_VSWING_1_2V:
+		return DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
+	default:
+		return -EINVAL;
+	}
+}
+
 static void
 parse_edp(struct intel_display *display,
 	  struct intel_panel *panel)
@@ -1441,6 +1473,7 @@ parse_edp(struct intel_display *display,
 	const struct bdb_edp *edp;
 	const struct edp_fast_link_params *edp_link_params;
 	int panel_type = panel->vbt.panel_type;
+	int ret;
 
 	edp = bdb_find_section(display, BDB_EDP);
 	if (!edp)
@@ -1503,45 +1536,21 @@ parse_edp(struct intel_display *display,
 		break;
 	}
 
-	switch (edp_link_params->preemphasis) {
-	case EDP_PREEMPHASIS_NONE:
-		panel->vbt.edp.preemphasis = DP_TRAIN_PRE_EMPH_LEVEL_0;
-		break;
-	case EDP_PREEMPHASIS_3_5dB:
-		panel->vbt.edp.preemphasis = DP_TRAIN_PRE_EMPH_LEVEL_1;
-		break;
-	case EDP_PREEMPHASIS_6dB:
-		panel->vbt.edp.preemphasis = DP_TRAIN_PRE_EMPH_LEVEL_2;
-		break;
-	case EDP_PREEMPHASIS_9_5dB:
-		panel->vbt.edp.preemphasis = DP_TRAIN_PRE_EMPH_LEVEL_3;
-		break;
-	default:
+	ret = edp_preemphasis_to_dp(edp_link_params->preemphasis);
+	if (ret >= 0)
+		panel->vbt.edp.preemphasis = ret;
+	else
 		drm_dbg_kms(display->drm,
 			    "VBT has unknown eDP pre-emphasis value %u\n",
 			    edp_link_params->preemphasis);
-		break;
-	}
 
-	switch (edp_link_params->vswing) {
-	case EDP_VSWING_0_4V:
-		panel->vbt.edp.vswing = DP_TRAIN_VOLTAGE_SWING_LEVEL_0;
-		break;
-	case EDP_VSWING_0_6V:
-		panel->vbt.edp.vswing = DP_TRAIN_VOLTAGE_SWING_LEVEL_1;
-		break;
-	case EDP_VSWING_0_8V:
-		panel->vbt.edp.vswing = DP_TRAIN_VOLTAGE_SWING_LEVEL_2;
-		break;
-	case EDP_VSWING_1_2V:
-		panel->vbt.edp.vswing = DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
-		break;
-	default:
+	ret = edp_vswing_to_dp(edp_link_params->vswing);
+	if (ret >= 0)
+		panel->vbt.edp.vswing = ret;
+	else
 		drm_dbg_kms(display->drm,
 			    "VBT has unknown eDP voltage swing value %u\n",
 			    edp_link_params->vswing);
-		break;
-	}
 
 	if (display->vbt.version >= 173) {
 		u8 vswing;
