@@ -409,6 +409,27 @@ static u8 intel_dp_get_lane_adjust_tx_ffe_preset(struct intel_dp *intel_dp,
 }
 
 /* 8b/10b */
+static u8 intel_dp_limit_vswing_preemph(struct intel_dp *intel_dp,
+					const struct intel_crtc_state *crtc_state,
+					enum drm_dp_phy dp_phy,
+					u8 v, u8 p)
+{
+	u8 voltage_max;
+	u8 preemph_max;
+
+	preemph_max = intel_dp_phy_preemph_max(intel_dp, dp_phy);
+	if (p >= preemph_max)
+		p = preemph_max | DP_TRAIN_MAX_PRE_EMPHASIS_REACHED;
+
+	v = min(v, dp_voltage_max(p));
+
+	voltage_max = intel_dp_phy_voltage_max(intel_dp, crtc_state, dp_phy);
+	if (v >= voltage_max)
+		v = voltage_max | DP_TRAIN_MAX_SWING_REACHED;
+
+	return v | p;
+}
+
 static u8 intel_dp_get_lane_adjust_vswing_preemph(struct intel_dp *intel_dp,
 						  const struct intel_crtc_state *crtc_state,
 						  enum drm_dp_phy dp_phy,
@@ -417,8 +438,6 @@ static u8 intel_dp_get_lane_adjust_vswing_preemph(struct intel_dp *intel_dp,
 {
 	u8 v = 0;
 	u8 p = 0;
-	u8 voltage_max;
-	u8 preemph_max;
 
 	if (has_per_lane_signal_levels(intel_dp, dp_phy)) {
 		lane = min(lane, crtc_state->lane_count - 1);
@@ -432,17 +451,7 @@ static u8 intel_dp_get_lane_adjust_vswing_preemph(struct intel_dp *intel_dp,
 		}
 	}
 
-	preemph_max = intel_dp_phy_preemph_max(intel_dp, dp_phy);
-	if (p >= preemph_max)
-		p = preemph_max | DP_TRAIN_MAX_PRE_EMPHASIS_REACHED;
-
-	v = min(v, dp_voltage_max(p));
-
-	voltage_max = intel_dp_phy_voltage_max(intel_dp, crtc_state, dp_phy);
-	if (v >= voltage_max)
-		v = voltage_max | DP_TRAIN_MAX_SWING_REACHED;
-
-	return v | p;
+	return intel_dp_limit_vswing_preemph(intel_dp, crtc_state, dp_phy, v, p);
 }
 
 static u8 intel_dp_get_lane_adjust_train(struct intel_dp *intel_dp,
