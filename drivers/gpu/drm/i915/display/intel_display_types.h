@@ -348,6 +348,9 @@ struct intel_vbt_panel_data {
 		int bpp;
 		struct intel_pps_delays pps;
 		u8 drrs_msa_timing_delay;
+		u8 full_link_preemphasis;
+		u8 full_link_vswing;
+		bool full_link_params_provided;
 		bool low_vswing;
 		bool hobl;
 		bool dsc_disable;

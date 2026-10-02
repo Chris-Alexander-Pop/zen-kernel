@@ -1565,6 +1565,25 @@ parse_edp(struct intel_display *display,
 		}
 	}
 
+	if (display->vbt.version >= 199 &&
+	    panel_bool(edp->full_link_params_provided, panel_type)) {
+		const struct edp_full_link_params *full_link_params =
+			&edp->full_link_params[panel_type];
+		int preemphasis = edp_preemphasis_to_dp(full_link_params->preemphasis);
+		int vswing = edp_vswing_to_dp(full_link_params->vswing);
+
+		if (preemphasis >= 0 && vswing >= 0) {
+			panel->vbt.edp.full_link_preemphasis = preemphasis;
+			panel->vbt.edp.full_link_vswing = vswing;
+			panel->vbt.edp.full_link_params_provided = true;
+		} else {
+			drm_dbg_kms(display->drm,
+				    "VBT has unknown eDP full link training levels: pre-emphasis %u, voltage swing %u\n",
+				    full_link_params->preemphasis,
+				    full_link_params->vswing);
+		}
+	}
+
 	panel->vbt.edp.drrs_msa_timing_delay =
 		panel_bits(edp->sdrrs_msa_timing_delay, panel_type, 2);
 
